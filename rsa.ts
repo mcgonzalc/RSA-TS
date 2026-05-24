@@ -1,4 +1,6 @@
+import { createHash } from 'crypto';
 import { bitLength as getBitLength, gcd, modPow, modInv, primeSync } from 'bigint-crypto-utils';
+
 export class RsaPublicKey {
     n: bigint;
     e: bigint;
@@ -43,4 +45,22 @@ export function generateKeyPair(bitLength: number): { publicKey: RsaPublicKey; p
         publicKey: new RsaPublicKey(n, e),
         privateKey: new RsaPrivateKey(n, d),
     };
+}
+
+// ---------- Firma / verificación de mensajes ----------
+
+/** SHA-256 de un mensaje como bigint (el digest es < n, así que se puede firmar). */
+export function hashToBigInt(message: string): bigint {
+    const hex = createHash('sha256').update(message).digest('hex');
+    return BigInt('0x' + hex);
+}
+
+/** Firma un mensaje: SHA-256 + RSA con la privada. Devuelve la firma como bigint. */
+export function signMessage(privateKey: RsaPrivateKey, message: string): bigint {
+    return privateKey.sign(hashToBigInt(message));
+}
+
+/** Verifica la firma de un mensaje con la pública (recupera el digest y lo compara). */
+export function verifyMessage(publicKey: RsaPublicKey, message: string, signature: bigint): boolean {
+    return publicKey.verify(signature) === hashToBigInt(message);
 }
