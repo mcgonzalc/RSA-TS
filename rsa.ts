@@ -65,6 +65,15 @@ export function verifyMessage(publicKey: RsaPublicKey, message: string, signatur
     return publicKey.verify(signature) === hashToBigInt(message);
 }
 
+/**
+ * Cifra un mensaje (bigint) con la pública RSA del destinatario.
+ * Acepta `null` por comodidad (las claves se cargan async y pueden no estar):
+ * en ese caso lanza, y quien llame lo captura.
+ */
+export function encryptMessage(message: bigint, publicKey: RsaPublicKey | null): bigint {
+    if (!publicKey) throw new Error("Public key not available");
+    return publicKey.encrypt(message);
+}
 
 /** Firma un mensaje ciego: RSA con la privada. Devuelve la firma como bigint. */
 
