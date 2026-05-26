@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "tsx rsa.ts",
     "build": "tsc",
-    "startE": "tsc && node dist/rsa.js"
+    "test": "tsx blindSign_test.ts"
   },
   "dependencies": {
     "bigint-crypto-utils": "^3.3.0",

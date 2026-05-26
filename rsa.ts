@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { bitLength as getBitLength, gcd, modPow, modInv, primeSync } from 'bigint-crypto-utils';
+import { bitLength as getBitLength, gcd, modPow, modInv, primeSync, randBetween } from 'bigint-crypto-utils';
 
 export class RsaPublicKey {
     n: bigint;
@@ -75,15 +75,46 @@ export function encryptMessage(message: bigint, publicKey: RsaPublicKey | null):
     return publicKey.encrypt(message);
 }
 
-/** Firma un mensaje ciego: RSA con la privada. Devuelve la firma como bigint. */
+// ---------- Firma a ciegas (blind signature) ----------
 
-// RSA blind signature: signs the blinded message without seeing the original value.
-// Client must unblind the result: s = blindSig * modInv(r, n) mod n
+/**
+ * Paso 1 (solicitante): cega el mensaje antes de pedir la firma.
+ * Elige un factor aleatorio r coprimo con n y devuelve:
+ *   blinded = m · r^e mod n
+ * junto al r, que el solicitante guarda para desvelar la firma después.
+ * El firmante nunca llega a ver el mensaje original m.
+ */
+export function blind(message: bigint, publicKey: RsaPublicKey): { blinded: bigint; r: bigint } {
+    let r: bigint;
+    do {
+        r = randBetween(publicKey.n - 1n, 2n);
+    } while (gcd(r, publicKey.n) !== 1n);
+    const blinded = (message * modPow(r, publicKey.e, publicKey.n)) % publicKey.n;
+    return { blinded, r };
+}
+
+/**
+ * Paso 2 (firmante): firma el mensaje cegado sin conocer el original.
+ *   blindSig = blinded^d mod n
+ */
 export function blindSign(privateKey: RsaPrivateKey, blindedMessage: bigint): bigint {
     return privateKey.sign(blindedMessage);
 }
 
-// RSA blind signature verification: checks that signature^e mod n === message.
+/**
+ * Paso 3 (solicitante): desvela la firma usando el r del paso 1.
+ *   s = blindSig · r^{-1} mod n
+ * El resultado es una firma RSA válida del mensaje original (s^e mod n === m).
+ */
+export function unblind(blindSignature: bigint, r: bigint, publicKey: RsaPublicKey): bigint {
+    const rInv = modInv(r, publicKey.n);
+    return (blindSignature * rInv) % publicKey.n;
+}
+
+/**
+ * Paso 4 (verificador): comprueba que la firma corresponde al mensaje.
+ *   signature^e mod n === message
+ */
 export function blindVerify(message: bigint, signature: bigint, pubKey: RsaPublicKey): boolean {
     return pubKey.verify(signature) === message;
 }
